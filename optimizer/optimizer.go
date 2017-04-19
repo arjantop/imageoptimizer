@@ -5,7 +5,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"sort"
 )
 
 type Name string
@@ -36,6 +35,8 @@ func (s bySize) Less(i, j int) bool {
 	return s[i].Size < s[j].Size
 }
 
+var DefaultPool = NewTaskPool()
+
 func Optimize(ctx context.Context, optimizers []ImageOptimizer, acceptedTypes []string, sourcePath string) (*ImageDescription, error) {
 	header := make([]byte, 512)
 	file, err := os.Open(sourcePath)
@@ -55,28 +56,22 @@ func Optimize(ctx context.Context, optimizers []ImageOptimizer, acceptedTypes []
 	log.Printf("Detected file type: %s", originalType)
 	originalSize := originalStat.Size()
 
-	images := make([]*ImageDescription, 0, len(optimizers)+1)
-	images = append(images, &ImageDescription{
+	originalImage := &ImageDescription{
 		Optimizer: Name("original"),
 		Path:      sourcePath,
 		MimeType:  originalType,
 		Size:      originalSize,
-	})
+	}
 
+	suitableOptimizers := make([]ImageOptimizer, 0, len(optimizers))
 	for _, opt := range optimizers {
 		if opt.CanOptimize(originalType, acceptedTypes) {
-			image, err := opt.Optimize(ctx, sourcePath)
-			if err != nil {
-				log.Println("error optimizing image: " + err.Error())
-				continue
-			}
-			images = append(images, image)
+			suitableOptimizers = append(suitableOptimizers, opt)
 		}
 	}
 
-	sort.Sort(bySize(images))
-	for _, image := range images {
-		log.Printf("optimizer=%s size=%d type=%s", image.Optimizer, image.Size, image.MimeType)
-	}
-	return images[0], nil
+	return DefaultPool.Do(ctx, &Task{
+		OriginalImage: originalImage,
+		Optimizers:    suitableOptimizers,
+	})
 }
