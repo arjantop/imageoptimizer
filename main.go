@@ -1,15 +1,16 @@
 package main
 
 import (
-	"io"
 	"log"
 	"net/http"
-	"os"
-	"strconv"
+	"path"
 
 	"strings"
 
-	"path"
+	"os"
+
+	"io"
+	"strconv"
 
 	"github.com/arjantop/imageoptimizer/optimizer"
 )
@@ -39,18 +40,25 @@ func parseAcceptedTypes(acceptHeader string) []string {
 }
 
 func main() {
+	//optimizers := []optimizer.ImageOptimizer{
+	//	&optimizer.WebpLosslessOptimizer{
+	//		Args: []string{"-z", "9"},
+	//	},
+	//	&optimizer.WebpLossyOptimizer{
+	//		Args: []string{"-q", "80"},
+	//	},
+	//	&optimizer.OptipngOptimizer{
+	//		Args: []string{"-strip", "all"},
+	//	},
+	//	&optimizer.MozjpegOptimizer{
+	//		Args: []string{"-copy", "none", "-optimize"},
+	//	},
+	//}
+
 	optimizers := []optimizer.ImageOptimizer{
-		&optimizer.WebpLosslessOptimizer{
-			Args: []string{"-z", "9"},
-		},
-		&optimizer.WebpLossyOptimizer{
-			Args: []string{"-q", "80"},
-		},
-		&optimizer.OptipngOptimizer{
-			Args: []string{"-strip", "all"},
-		},
-		&optimizer.MozjpegOptimizer{
-			Args: []string{"-copy", "none", "-optimize"},
+		&optimizer.MozjpegLosslessOptimizer{
+			Args:    []string{},
+			MinSsim: 0.95,
 		},
 	}
 

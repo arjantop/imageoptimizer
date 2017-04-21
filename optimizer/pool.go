@@ -18,6 +18,9 @@ type TaskPool struct {
 func NewTaskPool() *TaskPool {
 	return &TaskPool{
 		ScoringFunc: func(descriptions []*ImageDescription, errors []error) (*ImageDescription, error) {
+			if len(errors) > 0 {
+				log.Println(errors)
+			}
 			sort.Sort(bySize(descriptions))
 			for _, desc := range descriptions {
 				log.Printf("optimizer=%s size=%d type=%s", desc.Optimizer, desc.Size, desc.MimeType)
@@ -47,6 +50,7 @@ func (p *TaskPool) Do(ctx context.Context, task *Task) (*ImageDescription, error
 	imageDescriptions := make([]*ImageDescription, 0, len(task.Optimizers)+1)
 	imageDescriptions = append(imageDescriptions, task.OriginalImage)
 	errors := make([]error, 0, len(task.Optimizers))
+	var numDone int
 
 loop:
 	for {
@@ -56,10 +60,11 @@ loop:
 		case result := <-done:
 			if result.err != nil {
 				errors = append(errors, result.err)
-			} else {
+			} else if result.desc != nil {
 				imageDescriptions = append(imageDescriptions, result.desc)
 			}
-			if len(imageDescriptions)+len(errors) == len(task.Optimizers)+1 {
+			numDone++
+			if numDone == len(task.Optimizers) {
 				break loop
 			}
 		}
