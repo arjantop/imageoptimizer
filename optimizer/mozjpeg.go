@@ -87,8 +87,13 @@ func (o *MozjpegLosslessOptimizer) CanOptimize(mimeType string, acceptedTypes []
 
 func (o *MozjpegLosslessOptimizer) Optimize(ctx context.Context, sourcePath string) (*ImageDescription, error) {
 	var best *ImageDescription
-	for quality := 90; quality >= 10; quality -= 1 {
+	qualityMax := 100
+	qualityMin := 0
+	for qualityMin != qualityMax {
+		log.Println(qualityMin, qualityMax)
+		quality := (qualityMax + qualityMin) / 2
 		log.Printf("Trying quality %d", quality)
+
 		imageDesc, err := o.optimizeQuality(ctx, sourcePath, quality)
 		if err != nil {
 			return nil, err
@@ -100,10 +105,14 @@ func (o *MozjpegLosslessOptimizer) Optimize(ctx context.Context, sourcePath stri
 		}
 		log.Printf("ssim = %f", score)
 		if score < o.MinSsim {
-			return best, nil
+			qualityMin = quality + 1
+		} else {
+			qualityMax = quality - 1
+			log.Printf("Using quality %d", quality)
+			best = imageDesc
 		}
-		best = imageDesc
 	}
+
 	return best, nil
 }
 
