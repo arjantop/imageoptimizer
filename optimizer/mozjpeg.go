@@ -89,7 +89,7 @@ func (o *MozjpegLosslessOptimizer) Optimize(ctx context.Context, sourcePath stri
 	var best *ImageDescription
 	qualityMax := 100
 	qualityMin := 0
-	for qualityMin != qualityMax {
+	for qualityMax-qualityMin >= 0 {
 		log.Println(qualityMin, qualityMax)
 		quality := (qualityMax + qualityMin) / 2
 		log.Printf("Trying quality %d", quality)
@@ -146,6 +146,9 @@ func compareImages(sourcePath string, imgDesc2 *ImageDescription) (float64, erro
 	g.Draw(resized1, img1)
 	resized2 := image.NewRGBA(g.Bounds(img2.Bounds()))
 	g.Draw(resized2, img2)
+
+	//resized1 := img1
+	//resized2 := img2
 
 	return ssim.Ssim(convertToGrayscale(resized1), convertToGrayscale(resized2)), nil
 }

@@ -3,7 +3,6 @@ package main
 import (
 	"log"
 	"net/http"
-	"path"
 
 	"strings"
 
@@ -11,6 +10,12 @@ import (
 
 	"io"
 	"strconv"
+
+	"io/ioutil"
+
+	"net/url"
+
+	"flag"
 
 	"github.com/arjantop/imageoptimizer/optimizer"
 )
@@ -39,40 +44,82 @@ func parseAcceptedTypes(acceptHeader string) []string {
 	return acceptedTypes
 }
 
+var baseUrl = flag.String("baseurl", "", "Base url to which proxied requests are appended")
+
 func main() {
-	//optimizers := []optimizer.ImageOptimizer{
-	//	&optimizer.WebpLosslessOptimizer{
-	//		Args: []string{"-z", "9"},
-	//	},
-	//	&optimizer.WebpLossyOptimizer{
-	//		Args: []string{"-q", "80"},
-	//	},
-	//	&optimizer.OptipngOptimizer{
-	//		Args: []string{"-strip", "all"},
-	//	},
-	//	&optimizer.MozjpegOptimizer{
-	//		Args: []string{"-copy", "none", "-optimize"},
-	//	},
-	//}
+	flag.Parse()
+
+	if _, err := url.Parse(*baseUrl); *baseUrl == "" || err != nil {
+		log.Fatalf("Invalid base url: %s", *baseUrl)
+	}
 
 	optimizers := []optimizer.ImageOptimizer{
+		&optimizer.WebpLosslessOptimizer{
+			Args: []string{"-z", "9"},
+		},
+		&optimizer.WebpLossyOptimizer{
+			Args: []string{"-q", "90"},
+		},
+		&optimizer.OptipngOptimizer{
+			Args: []string{"-strip", "all"},
+		},
+		&optimizer.MozjpegOptimizer{
+			Args: []string{"-copy", "none", "-optimize"},
+		},
 		&optimizer.MozjpegLosslessOptimizer{
 			Args:    []string{},
 			MinSsim: 0.992,
 		},
 	}
 
+	client := &http.Client{}
+
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		acceptedTypes := parseAcceptedTypes(r.Header.Get("Accept"))
 
-		requestedFile := path.Join("images", r.RequestURI[1:])
-		log.Println("Requested file: " + r.RequestURI)
-		if _, err := os.Stat(requestedFile); err != nil {
-			http.NotFound(w, r)
+		requestUrl, err := url.ParseRequestURI(r.RequestURI)
+		if err != nil {
+			http.Error(w, "Invalid url", http.StatusBadRequest)
 			return
 		}
 
-		optimizedImage, err := optimizer.Optimize(r.Context(), optimizers, acceptedTypes, requestedFile)
+		log.Println("Proxying: " + requestUrl.Path)
+		resp, err := client.Get(*baseUrl + requestUrl.Path)
+		if err != nil {
+			reportError(w, "Call failed", err)
+			return
+		}
+		defer resp.Body.Close()
+
+		if !optimizer.CanOptimize(optimizers, resp.Header.Get("Content-Type"), acceptedTypes) {
+			for key, vals := range resp.Header {
+				for _, val := range vals {
+					w.Header().Add(key, val)
+				}
+			}
+			w.WriteHeader(resp.StatusCode)
+			_, err = io.Copy(w, resp.Body)
+			if err != nil {
+				reportError(w, "Could not copy data to client", err)
+				return
+			}
+			return
+		}
+
+		tempFile, err := ioutil.TempFile(os.TempDir(), strings.Replace(r.RequestURI, "/", "", -1))
+		if err != nil {
+			reportError(w, "Could not create temp file", err)
+			return
+		}
+		defer tempFile.Close()
+
+		_, err = io.Copy(tempFile, resp.Body)
+		if err != nil {
+			reportError(w, "Could not copy data to temp file", err)
+			return
+		}
+
+		optimizedImage, err := optimizer.Optimize(r.Context(), optimizers, acceptedTypes, tempFile.Name())
 		if err != nil {
 			reportError(w, "Could not optimize the file", err)
 			return

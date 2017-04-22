@@ -70,8 +70,21 @@ func Optimize(ctx context.Context, optimizers []ImageOptimizer, acceptedTypes []
 		}
 	}
 
+	if len(suitableOptimizers) == 0 {
+		return nil, nil
+	}
+
 	return DefaultPool.Do(ctx, &Task{
 		OriginalImage: originalImage,
 		Optimizers:    suitableOptimizers,
 	})
+}
+
+func CanOptimize(optimizers []ImageOptimizer, mimeType string, acceptedTyped []string) bool {
+	for _, opt := range optimizers {
+		if opt.CanOptimize(mimeType, acceptedTyped) {
+			return true
+		}
+	}
+	return false
 }
