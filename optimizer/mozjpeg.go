@@ -14,6 +14,7 @@ import (
 	"log"
 
 	"github.com/arjantop/imageoptimizer/ssim"
+	"github.com/disintegration/gift"
 )
 
 var _ ImageOptimizer = &MozjpegOptimizer{}
@@ -86,7 +87,7 @@ func (o *MozjpegLosslessOptimizer) CanOptimize(mimeType string, acceptedTypes []
 
 func (o *MozjpegLosslessOptimizer) Optimize(ctx context.Context, sourcePath string) (*ImageDescription, error) {
 	var best *ImageDescription
-	for quality := 90; quality >= 10; quality -= 5 {
+	for quality := 90; quality >= 10; quality -= 1 {
 		log.Printf("Trying quality %d", quality)
 		imageDesc, err := o.optimizeQuality(ctx, sourcePath, quality)
 		if err != nil {
@@ -128,7 +129,16 @@ func compareImages(sourcePath string, imgDesc2 *ImageDescription) (float64, erro
 		return 0, err
 	}
 
-	return ssim.Ssim(convertToGrayscale(img1), convertToGrayscale(img2)), nil
+	g := gift.New(
+		gift.Resize(img1.Bounds().Dy()/2, 0, gift.LanczosResampling),
+	)
+
+	resized1 := image.NewRGBA(g.Bounds(img1.Bounds()))
+	g.Draw(resized1, img1)
+	resized2 := image.NewRGBA(g.Bounds(img2.Bounds()))
+	g.Draw(resized2, img2)
+
+	return ssim.Ssim(convertToGrayscale(resized1), convertToGrayscale(resized2)), nil
 }
 
 func (o *MozjpegLosslessOptimizer) optimizeQuality(ctx context.Context, sourcePath string, quality int) (*ImageDescription, error) {
@@ -159,7 +169,7 @@ func (o *MozjpegLosslessOptimizer) optimizeQuality(ctx context.Context, sourcePa
 	}
 
 	return &ImageDescription{
-		Optimizer: Name("mozjpeg"),
+		Optimizer: Name("mozjpeg-lossy"),
 		Path:      outputPath,
 		MimeType:  "image/jpeg",
 		Size:      fileStat.Size(),

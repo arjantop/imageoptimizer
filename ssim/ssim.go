@@ -3,6 +3,8 @@ package ssim
 import (
 	"image"
 	"math"
+
+	"github.com/disintegration/gift"
 )
 
 const (
@@ -106,4 +108,75 @@ func covariance(mean1 float64, img1 *image.Gray, mean2 float64, img2 *image.Gray
 	}
 
 	return sum
+}
+
+type segmentedImage struct {
+	edges           *image.Gray
+	smoothRegions   *image.Gray
+	texturedRegions *image.Gray
+}
+
+func segmentImage(img1 *image.Gray, sobel1 *image.Gray, img2 *image.Gray, sobel2 *image.Gray) (segmentedImage, segmentedImage) {
+	boundsMin := sobel1.Bounds().Min
+	boundsMax := sobel1.Bounds().Max
+
+	var gmax uint8
+	for y := boundsMin.Y; y < boundsMax.Y; y++ {
+		for x := boundsMin.X; x < boundsMax.X; x++ {
+			value := sobel1.GrayAt(x, y).Y
+			if value > gmax {
+				gmax = value
+			}
+		}
+	}
+
+	th1 := 0.12 * float64(gmax)
+	th2 := 0.06 * float64(gmax)
+
+	edges1 := image.NewGray(sobel1.Bounds())
+	edges2 := image.NewGray(sobel1.Bounds())
+	smoothRegions1 := image.NewGray(sobel1.Bounds())
+	smoothRegions2 := image.NewGray(sobel1.Bounds())
+	texturedRegions1 := image.NewGray(sobel1.Bounds())
+	texturedRegions2 := image.NewGray(sobel1.Bounds())
+
+	for y := boundsMin.Y; y < boundsMax.Y; y++ {
+		for x := boundsMin.X; x < boundsMax.X; x++ {
+			if float64(sobel1.GrayAt(x, y).Y) > th1 || float64(sobel2.GrayAt(x, y).Y) > th1 {
+				edges1.SetGray(x, y, img1.GrayAt(x, y))
+				edges2.SetGray(x, y, img2.GrayAt(x, y))
+			} else if float64(sobel1.GrayAt(x, y).Y) < th2 || float64(sobel2.GrayAt(x, y).Y) <= th1 {
+				smoothRegions1.SetGray(x, y, img1.GrayAt(x, y))
+				smoothRegions2.SetGray(x, y, img2.GrayAt(x, y))
+			} else {
+				texturedRegions1.SetGray(x, y, img1.GrayAt(x, y))
+				texturedRegions2.SetGray(x, y, img2.GrayAt(x, y))
+			}
+		}
+	}
+
+	return segmentedImage{
+			edges:           edges1,
+			smoothRegions:   smoothRegions1,
+			texturedRegions: texturedRegions1,
+		}, segmentedImage{
+			edges:           edges2,
+			smoothRegions:   smoothRegions2,
+			texturedRegions: texturedRegions2,
+		}
+}
+
+func ContentWeightedSsim(img1 *image.Gray, img2 *image.Gray) float64 {
+	g := gift.New(gift.Sobel())
+
+	sobel1 := image.NewGray(img1.Bounds())
+	g.Draw(sobel1, img1)
+	sobel2 := image.NewGray(img1.Bounds())
+	g.Draw(sobel2, img2)
+
+	segmented1, segmented2 := segmentImage(img1, sobel1, img2, sobel2)
+
+	return 0.5*Ssim(segmented1.edges, segmented2.edges) +
+		0.25*Ssim(segmented1.smoothRegions, segmented2.smoothRegions) +
+		0.25*Ssim(segmented1.texturedRegions, segmented2.texturedRegions)
 }
