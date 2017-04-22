@@ -130,7 +130,7 @@ func compareImages(sourcePath string, imgDesc2 *ImageDescription) (float64, erro
 	}
 
 	g := gift.New(
-		gift.Resize(img1.Bounds().Dy()/2, 0, gift.LanczosResampling),
+		gift.Resize(img1.Bounds().Dx()/2, 0, gift.LanczosResampling),
 	)
 
 	resized1 := image.NewRGBA(g.Bounds(img1.Bounds()))

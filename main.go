@@ -58,7 +58,7 @@ func main() {
 	optimizers := []optimizer.ImageOptimizer{
 		&optimizer.MozjpegLosslessOptimizer{
 			Args:    []string{},
-			MinSsim: 0.993,
+			MinSsim: 0.992,
 		},
 	}
 
