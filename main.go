@@ -58,7 +58,12 @@ func main() {
 			Args: []string{"-z", "9"},
 		},
 		&optimizer.WebpLossyOptimizer{
-			Args: []string{"-q", "90"},
+			InputFormat: "image/png",
+			MinSsim:     0.995,
+		},
+		&optimizer.WebpLossyOptimizer{
+			InputFormat: "image/jpeg",
+			MinSsim:     0.993,
 		},
 		&optimizer.OptipngOptimizer{
 			Args: []string{"-strip", "all"},
@@ -67,8 +72,7 @@ func main() {
 			Args: []string{"-copy", "none", "-optimize"},
 		},
 		&optimizer.MozjpegLosslessOptimizer{
-			Args:    []string{},
-			MinSsim: 0.992,
+			MinSsim: 0.993,
 		},
 	}
 

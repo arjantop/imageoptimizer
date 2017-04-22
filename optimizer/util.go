@@ -3,6 +3,7 @@ package optimizer
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"image"
 	"path"
 	"strconv"
 	"time"
@@ -35,4 +36,14 @@ func contains(slice []string, elem string) bool {
 		}
 	}
 	return false
+}
+
+func convertToGrayscale(img image.Image) *image.Gray {
+	output := image.NewGray(img.Bounds())
+	for y := 0; y < img.Bounds().Max.Y; y++ {
+		for x := 0; x < img.Bounds().Max.X; x++ {
+			output.Set(x, y, img.At(x, y))
+		}
+	}
+	return output
 }

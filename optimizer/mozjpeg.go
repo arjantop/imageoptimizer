@@ -66,18 +66,7 @@ func (o *MozjpegOptimizer) Optimize(ctx context.Context, sourcePath string) (*Im
 
 var _ ImageOptimizer = &MozjpegLosslessOptimizer{}
 
-func convertToGrayscale(img image.Image) *image.Gray {
-	output := image.NewGray(img.Bounds())
-	for y := 0; y < img.Bounds().Max.Y; y++ {
-		for x := 0; x < img.Bounds().Max.X; x++ {
-			output.Set(x, y, img.At(x, y))
-		}
-	}
-	return output
-}
-
 type MozjpegLosslessOptimizer struct {
-	Args    []string
 	MinSsim float64
 }
 
