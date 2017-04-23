@@ -52,73 +52,57 @@ func (o *WebpLosslessOptimizer) Optimize(ctx context.Context, sourcePath string)
 	}, nil
 }
 
-var _ ImageOptimizer = &WebpLossyOptimizer{}
+func NewWebpLossyPngOptimizer(minSsim float64) ImageOptimizer {
+	return &AutomaticOptimizer{
+		CanOptimizeImage: func(mimeType string, acceptedTypes []string) bool {
+			return mimeType == "image/png" && isFiletypeAccepted(acceptedTypes, []string{"image/webp"})
+		},
+		OptimizePrecheck: func(ctx context.Context, sourcePath string) (bool, error) {
+			file, err := os.Open(sourcePath)
+			if err != nil {
+				return false, err
+			}
+			defer file.Close()
 
-type WebpLossyOptimizer struct {
-	InputFormat string
-	MinSsim     float64
-}
+			img, err := png.Decode(file)
+			if err != nil {
+				return false, err
+			}
 
-func (o *WebpLossyOptimizer) CanOptimize(mimeType string, acceptedTypes []string) bool {
-	return mimeType == o.InputFormat && isFiletypeAccepted(acceptedTypes, []string{"image/webp"})
-}
-
-func (o *WebpLossyOptimizer) Optimize(ctx context.Context, sourcePath string) (*ImageDescription, error) {
-	if o.InputFormat == "image/png" {
-		file, err := os.Open(sourcePath)
-		if err != nil {
-			return nil, err
-		}
-		defer file.Close()
-
-		img, err := png.Decode(file)
-		if err != nil {
-			return nil, err
-		}
-
-		for y := 0; y < img.Bounds().Max.Y; y++ {
-			for x := 0; x < img.Bounds().Max.X; x++ {
-				_, _, _, a := img.At(x, y).RGBA()
-				if a < uint32(^uint16(0)) {
-					log.Println("Image has transparency")
-					return nil, nil
+			for y := 0; y < img.Bounds().Max.Y; y++ {
+				for x := 0; x < img.Bounds().Max.X; x++ {
+					_, _, _, a := img.At(x, y).RGBA()
+					if a < uint32(^uint16(0)) {
+						log.Println("Image has transparency")
+						return false, nil
+					}
 				}
 			}
-		}
+			return true, nil
+		},
+		OptimizeQuality: func(ctx context.Context, sourcePath string, quality int) (*ImageDescription, error) {
+			return optimizeWebpQuality(ctx, "png", sourcePath, quality)
+		},
+		CompareImages: compareImagesWebp,
+		MinSsim:       minSsim,
 	}
-
-	var best *ImageDescription
-	qualityMax := 100
-	qualityMin := 0
-	for qualityMax-qualityMin >= 0 {
-		log.Println(qualityMin, qualityMax)
-		quality := (qualityMax + qualityMin) / 2
-		log.Printf("Trying quality %d", quality)
-
-		imageDesc, err := o.optimizeQuality(ctx, sourcePath, quality)
-		if err != nil {
-			return nil, err
-		}
-
-		score, err := o.compareImagesWebp(ctx, sourcePath, imageDesc)
-		if err != nil {
-			return nil, err
-		}
-		log.Printf("ssim = %f", score)
-		if score < o.MinSsim {
-			qualityMin = quality + 1
-		} else {
-			qualityMax = quality - 1
-			log.Printf("Using quality %d", quality)
-			best = imageDesc
-		}
-	}
-
-	return best, nil
 }
 
-func (o *WebpLossyOptimizer) compareImagesWebp(ctx context.Context, sourcePath string, imgDesc2 *ImageDescription) (float64, error) {
-	converted, err := o.optimizeQuality(ctx, sourcePath, 100)
+func NewWebpLossyJpegOptimizer(minSsim float64) ImageOptimizer {
+	return &AutomaticOptimizer{
+		CanOptimizeImage: func(mimeType string, acceptedTypes []string) bool {
+			return mimeType == "image/jpeg" && isFiletypeAccepted(acceptedTypes, []string{"image/webp"})
+		},
+		OptimizeQuality: func(ctx context.Context, sourcePath string, quality int) (*ImageDescription, error) {
+			return optimizeWebpQuality(ctx, "jpeg", sourcePath, quality)
+		},
+		CompareImages: compareImagesWebp,
+		MinSsim:       minSsim,
+	}
+}
+
+func compareImagesWebp(ctx context.Context, sourcePath string, imgDesc2 *ImageDescription) (float64, error) {
+	converted, err := optimizeWebpQuality(ctx, "", sourcePath, 100)
 	if err != nil {
 		return 0, err
 	}
@@ -159,7 +143,7 @@ func (o *WebpLossyOptimizer) compareImagesWebp(ctx context.Context, sourcePath s
 	return ssim.Ssim(convertToGrayscale(resized1), convertToGrayscale(resized2)), nil
 }
 
-func (o *WebpLossyOptimizer) optimizeQuality(ctx context.Context, sourcePath string, quality int) (*ImageDescription, error) {
+func optimizeWebpQuality(ctx context.Context, optimizerType string, sourcePath string, quality int) (*ImageDescription, error) {
 	outputPath := tempFilename(os.TempDir(), path.Base(sourcePath))
 	cmd := exec.CommandContext(ctx, "cwebp", "-q", strconv.Itoa(quality), "-o", outputPath, sourcePath)
 
@@ -187,7 +171,7 @@ func (o *WebpLossyOptimizer) optimizeQuality(ctx context.Context, sourcePath str
 	}
 
 	return &ImageDescription{
-		Optimizer: Name(fmt.Sprintf("cwebp-lossy[%s]", o.InputFormat)),
+		Optimizer: Name(fmt.Sprintf("cwebp-lossy[%s]", optimizerType)),
 		Path:      outputPath,
 		MimeType:  "image/webp",
 		Size:      fileStat.Size(),

@@ -57,23 +57,15 @@ func main() {
 		&optimizer.WebpLosslessOptimizer{
 			Args: []string{"-z", "9"},
 		},
-		&optimizer.WebpLossyOptimizer{
-			InputFormat: "image/png",
-			MinSsim:     0.998,
-		},
-		&optimizer.WebpLossyOptimizer{
-			InputFormat: "image/jpeg",
-			MinSsim:     0.993,
-		},
+		optimizer.NewWebpLossyPngOptimizer(0.998),
+		optimizer.NewWebpLossyJpegOptimizer(0.993),
 		&optimizer.OptipngOptimizer{
 			Args: []string{"-strip", "all"},
 		},
 		&optimizer.MozjpegOptimizer{
 			Args: []string{"-copy", "none", "-optimize"},
 		},
-		&optimizer.MozjpegLosslessOptimizer{
-			MinSsim: 0.993,
-		},
+		optimizer.NewMozjpegLossyOptimizer(0.993),
 	}
 
 	client := &http.Client{}

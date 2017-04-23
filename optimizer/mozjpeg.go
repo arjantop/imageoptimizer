@@ -11,8 +11,6 @@ import (
 	"path"
 	"strconv"
 
-	"log"
-
 	"github.com/arjantop/imageoptimizer/ssim"
 	"github.com/disintegration/gift"
 )
@@ -64,48 +62,18 @@ func (o *MozjpegOptimizer) Optimize(ctx context.Context, sourcePath string) (*Im
 	}, nil
 }
 
-var _ ImageOptimizer = &MozjpegLosslessOptimizer{}
-
-type MozjpegLosslessOptimizer struct {
-	MinSsim float64
-}
-
-func (o *MozjpegLosslessOptimizer) CanOptimize(mimeType string, acceptedTypes []string) bool {
-	return mimeType == "image/jpeg" && isFiletypeAccepted(acceptedTypes, []string{"image/jpeg", "image/*", "*/*"})
-}
-
-func (o *MozjpegLosslessOptimizer) Optimize(ctx context.Context, sourcePath string) (*ImageDescription, error) {
-	var best *ImageDescription
-	qualityMax := 100
-	qualityMin := 0
-	for qualityMax-qualityMin >= 0 {
-		log.Println(qualityMin, qualityMax)
-		quality := (qualityMax + qualityMin) / 2
-		log.Printf("Trying quality %d", quality)
-
-		imageDesc, err := o.optimizeQuality(ctx, sourcePath, quality)
-		if err != nil {
-			return nil, err
-		}
-
-		score, err := compareImages(sourcePath, imageDesc)
-		if err != nil {
-			return nil, err
-		}
-		log.Printf("ssim = %f", score)
-		if score < o.MinSsim {
-			qualityMin = quality + 1
-		} else {
-			qualityMax = quality - 1
-			log.Printf("Using quality %d", quality)
-			best = imageDesc
-		}
+func NewMozjpegLossyOptimizer(minSsim float64) ImageOptimizer {
+	return &AutomaticOptimizer{
+		CanOptimizeImage: func(mimeType string, acceptedTypes []string) bool {
+			return mimeType == "image/jpeg" && isFiletypeAccepted(acceptedTypes, []string{"image/jpeg", "image/*", "*/*"})
+		},
+		OptimizeQuality: optimizeQuality,
+		CompareImages:   compareImages,
+		MinSsim:         minSsim,
 	}
-
-	return best, nil
 }
 
-func compareImages(sourcePath string, imgDesc2 *ImageDescription) (float64, error) {
+func compareImages(_ context.Context, sourcePath string, imgDesc2 *ImageDescription) (float64, error) {
 	file1, err := os.Open(sourcePath)
 	if err != nil {
 		return 0, err
@@ -142,7 +110,7 @@ func compareImages(sourcePath string, imgDesc2 *ImageDescription) (float64, erro
 	return ssim.Ssim(convertToGrayscale(resized1), convertToGrayscale(resized2)), nil
 }
 
-func (o *MozjpegLosslessOptimizer) optimizeQuality(ctx context.Context, sourcePath string, quality int) (*ImageDescription, error) {
+func optimizeQuality(ctx context.Context, sourcePath string, quality int) (*ImageDescription, error) {
 	outputPath := tempFilename(os.TempDir(), path.Base(sourcePath))
 	cmd := exec.CommandContext(ctx, "cjpeg", "-optimize", "-quality", strconv.Itoa(quality), sourcePath)
 
