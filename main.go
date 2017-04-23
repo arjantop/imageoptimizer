@@ -59,7 +59,7 @@ func main() {
 		},
 		&optimizer.WebpLossyOptimizer{
 			InputFormat: "image/png",
-			MinSsim:     0.995,
+			MinSsim:     0.998,
 		},
 		&optimizer.WebpLossyOptimizer{
 			InputFormat: "image/jpeg",

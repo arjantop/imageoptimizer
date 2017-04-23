@@ -79,7 +79,7 @@ func (o *WebpLossyOptimizer) Optimize(ctx context.Context, sourcePath string) (*
 		for y := 0; y < img.Bounds().Max.Y; y++ {
 			for x := 0; x < img.Bounds().Max.X; x++ {
 				_, _, _, a := img.At(x, y).RGBA()
-				if a < 255 {
+				if a < uint32(^uint16(0)) {
 					log.Println("Image has transparency")
 					return nil, nil
 				}
