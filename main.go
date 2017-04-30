@@ -58,14 +58,14 @@ func main() {
 			Args: []string{"-z", "9"},
 		},
 		optimizer.NewWebpLossyPngOptimizer(0.998),
-		optimizer.NewWebpLossyJpegOptimizer(0.993),
+		optimizer.NewWebpLossyJpegOptimizer(0.995),
 		&optimizer.OptipngOptimizer{
 			Args: []string{"-strip", "all"},
 		},
 		&optimizer.MozjpegOptimizer{
 			Args: []string{"-copy", "none", "-optimize"},
 		},
-		optimizer.NewMozjpegLossyOptimizer(0.993),
+		optimizer.NewMozjpegLossyOptimizer(0.994),
 	}
 
 	client := &http.Client{}

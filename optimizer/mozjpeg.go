@@ -4,12 +4,13 @@ import (
 	"bufio"
 	"context"
 	"errors"
-	"image"
 	"image/jpeg"
 	"os"
 	"os/exec"
 	"path"
 	"strconv"
+
+	"image"
 
 	"github.com/arjantop/imageoptimizer/ssim"
 	"github.com/disintegration/gift"
