@@ -9,6 +9,7 @@ import (
 type Task struct {
 	OriginalImage *ImageDescription
 	Optimizers    []ImageOptimizer
+	Hidpi         bool
 }
 
 type TaskPool struct {
@@ -39,7 +40,7 @@ func (p *TaskPool) Do(ctx context.Context, task *Task) (*ImageDescription, error
 	done := make(chan result, len(task.Optimizers))
 	for _, imageOptimizer := range task.Optimizers {
 		go func(opt ImageOptimizer) {
-			desc, err := opt.Optimize(ctx, task.OriginalImage.Path)
+			desc, err := opt.Optimize(ctx, task.OriginalImage.Path, task.Hidpi)
 			done <- result{
 				desc: desc,
 				err:  err,

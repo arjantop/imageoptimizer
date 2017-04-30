@@ -11,7 +11,7 @@ type AutomaticOptimizer struct {
 	CanOptimizeImage func(mimeType string, acceptedTypes []string) bool
 	OptimizePrecheck func(ctx context.Context, sourcePath string) (bool, error)
 	OptimizeQuality  func(ctx context.Context, sourcePath string, quality int) (*ImageDescription, error)
-	CompareImages    func(ctx context.Context, sourcePath string, imgDesc *ImageDescription) (float64, error)
+	CompareImages    func(ctx context.Context, sourcePath string, imgDesc *ImageDescription, hidpi bool) (float64, error)
 	MinSsim          float64
 }
 
@@ -19,7 +19,7 @@ func (o *AutomaticOptimizer) CanOptimize(mimeType string, acceptedTypes []string
 	return o.CanOptimizeImage(mimeType, acceptedTypes)
 }
 
-func (o *AutomaticOptimizer) Optimize(ctx context.Context, sourcePath string) (*ImageDescription, error) {
+func (o *AutomaticOptimizer) Optimize(ctx context.Context, sourcePath string, hidpi bool) (*ImageDescription, error) {
 	if o.OptimizePrecheck != nil {
 		ok, err := o.OptimizePrecheck(ctx, sourcePath)
 		if err != nil {
@@ -42,7 +42,7 @@ func (o *AutomaticOptimizer) Optimize(ctx context.Context, sourcePath string) (*
 			return nil, err
 		}
 
-		score, err := o.CompareImages(ctx, sourcePath, imageDesc)
+		score, err := o.CompareImages(ctx, sourcePath, imageDesc, hidpi)
 		if err != nil {
 			return nil, err
 		}

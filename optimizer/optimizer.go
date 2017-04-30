@@ -18,7 +18,7 @@ type ImageDescription struct {
 
 type ImageOptimizer interface {
 	CanOptimize(mimeType string, acceptedTypes []string) bool
-	Optimize(ctx context.Context, sourcePath string) (*ImageDescription, error)
+	Optimize(ctx context.Context, sourcePath string, hidpi bool) (*ImageDescription, error)
 }
 
 type bySize []*ImageDescription
@@ -37,9 +37,15 @@ func (s bySize) Less(i, j int) bool {
 
 var DefaultPool = NewTaskPool()
 
-func Optimize(ctx context.Context, optimizers []ImageOptimizer, acceptedTypes []string, sourcePath string) (*ImageDescription, error) {
+type OptimizeParams struct {
+	AcceptedTypes []string
+	SourcePath    string
+	Hidpi         bool
+}
+
+func Optimize(ctx context.Context, optimizers []ImageOptimizer, params OptimizeParams) (*ImageDescription, error) {
 	header := make([]byte, 512)
-	file, err := os.Open(sourcePath)
+	file, err := os.Open(params.SourcePath)
 	if err != nil {
 		return nil, err
 	}
@@ -58,14 +64,14 @@ func Optimize(ctx context.Context, optimizers []ImageOptimizer, acceptedTypes []
 
 	originalImage := &ImageDescription{
 		Optimizer: Name("original"),
-		Path:      sourcePath,
+		Path:      params.SourcePath,
 		MimeType:  originalType,
 		Size:      originalSize,
 	}
 
 	suitableOptimizers := make([]ImageOptimizer, 0, len(optimizers))
 	for _, opt := range optimizers {
-		if opt.CanOptimize(originalType, acceptedTypes) {
+		if opt.CanOptimize(originalType, params.AcceptedTypes) {
 			suitableOptimizers = append(suitableOptimizers, opt)
 		}
 	}
@@ -77,6 +83,7 @@ func Optimize(ctx context.Context, optimizers []ImageOptimizer, acceptedTypes []
 	return DefaultPool.Do(ctx, &Task{
 		OriginalImage: originalImage,
 		Optimizers:    suitableOptimizers,
+		Hidpi:         params.Hidpi,
 	})
 }
 

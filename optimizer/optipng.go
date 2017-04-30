@@ -18,7 +18,7 @@ func (o *OptipngOptimizer) CanOptimize(mimeType string, acceptedTypes []string) 
 	return mimeType == "image/png" && isFiletypeAccepted(acceptedTypes, []string{"image/png", "image/*", "*/*"})
 }
 
-func (o *OptipngOptimizer) Optimize(ctx context.Context, sourcePath string) (*ImageDescription, error) {
+func (o *OptipngOptimizer) Optimize(ctx context.Context, sourcePath string, hidpi bool) (*ImageDescription, error) {
 	outputPath := tempFilename(os.TempDir(), path.Base(sourcePath))
 	args := []string{sourcePath, "-out", outputPath}
 	err := exec.CommandContext(ctx, "optipng", append(args, o.Args...)...).Run()

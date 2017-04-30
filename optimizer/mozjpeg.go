@@ -4,13 +4,12 @@ import (
 	"bufio"
 	"context"
 	"errors"
+	"image"
 	"image/jpeg"
 	"os"
 	"os/exec"
 	"path"
 	"strconv"
-
-	"image"
 
 	"github.com/arjantop/imageoptimizer/ssim"
 	"github.com/disintegration/gift"
@@ -26,7 +25,7 @@ func (o *MozjpegOptimizer) CanOptimize(mimeType string, acceptedTypes []string) 
 	return mimeType == "image/jpeg" && isFiletypeAccepted(acceptedTypes, []string{"image/jpeg", "image/*", "*/*"})
 }
 
-func (o *MozjpegOptimizer) Optimize(ctx context.Context, sourcePath string) (*ImageDescription, error) {
+func (o *MozjpegOptimizer) Optimize(ctx context.Context, sourcePath string, hidpi bool) (*ImageDescription, error) {
 	outputPath := tempFilename(os.TempDir(), path.Base(sourcePath))
 	args := make([]string, len(o.Args))
 	copy(args, o.Args)
@@ -74,7 +73,7 @@ func NewMozjpegLossyOptimizer(minSsim float64) ImageOptimizer {
 	}
 }
 
-func compareImages(_ context.Context, sourcePath string, imgDesc2 *ImageDescription) (float64, error) {
+func compareImages(_ context.Context, sourcePath string, imgDesc2 *ImageDescription, hidpi bool) (float64, error) {
 	file1, err := os.Open(sourcePath)
 	if err != nil {
 		return 0, err
@@ -96,19 +95,20 @@ func compareImages(_ context.Context, sourcePath string, imgDesc2 *ImageDescript
 		return 0, err
 	}
 
-	g := gift.New(
-		gift.Resize(img1.Bounds().Dx()/2, 0, gift.LanczosResampling),
-	)
+	if hidpi {
+		g := gift.New(
+			gift.Resize(img1.Bounds().Dx()/2, 0, gift.LanczosResampling),
+		)
 
-	resized1 := image.NewRGBA(g.Bounds(img1.Bounds()))
-	g.Draw(resized1, img1)
-	resized2 := image.NewRGBA(g.Bounds(img2.Bounds()))
-	g.Draw(resized2, img2)
+		resized1 := image.NewRGBA(g.Bounds(img1.Bounds()))
+		g.Draw(resized1, img1)
+		img1 = resized1
+		resized2 := image.NewRGBA(g.Bounds(img2.Bounds()))
+		g.Draw(resized2, img2)
+		img2 = resized2
+	}
 
-	//resized1 := img1
-	//resized2 := img2
-
-	return ssim.Ssim(convertToGrayscale(resized1), convertToGrayscale(resized2)), nil
+	return ssim.Ssim(convertToGrayscale(img1), convertToGrayscale(img2)), nil
 }
 
 func optimizeQuality(ctx context.Context, sourcePath string, quality int) (*ImageDescription, error) {

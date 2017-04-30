@@ -31,7 +31,7 @@ func (o *WebpLosslessOptimizer) CanOptimize(mimeType string, acceptedTypes []str
 	return mimeType == "image/png" && isFiletypeAccepted(acceptedTypes, []string{"image/webp"})
 }
 
-func (o *WebpLosslessOptimizer) Optimize(ctx context.Context, sourcePath string) (*ImageDescription, error) {
+func (o *WebpLosslessOptimizer) Optimize(ctx context.Context, sourcePath string, hidpi bool) (*ImageDescription, error) {
 	outputPath := tempFilename(os.TempDir(), path.Base(sourcePath))
 	args := []string{sourcePath, "-o", outputPath, "-lossless"}
 	err := exec.CommandContext(ctx, "cwebp", append(args, o.Args...)...).Run()
@@ -101,7 +101,7 @@ func NewWebpLossyJpegOptimizer(minSsim float64) ImageOptimizer {
 	}
 }
 
-func compareImagesWebp(ctx context.Context, sourcePath string, imgDesc2 *ImageDescription) (float64, error) {
+func compareImagesWebp(ctx context.Context, sourcePath string, imgDesc2 *ImageDescription, hidpi bool) (float64, error) {
 	converted, err := optimizeWebpQuality(ctx, "", sourcePath, 100)
 	if err != nil {
 		return 0, err
@@ -128,19 +128,20 @@ func compareImagesWebp(ctx context.Context, sourcePath string, imgDesc2 *ImageDe
 		return 0, err
 	}
 
-	g := gift.New(
-		gift.Resize(img1.Bounds().Dx()/2, 0, gift.LanczosResampling),
-	)
+	if hidpi {
+		g := gift.New(
+			gift.Resize(img1.Bounds().Dx()/2, 0, gift.LanczosResampling),
+		)
 
-	resized1 := image.NewRGBA(g.Bounds(img1.Bounds()))
-	g.Draw(resized1, img1)
-	resized2 := image.NewRGBA(g.Bounds(img2.Bounds()))
-	g.Draw(resized2, img2)
+		resized1 := image.NewRGBA(g.Bounds(img1.Bounds()))
+		g.Draw(resized1, img1)
+		img1 = resized1
+		resized2 := image.NewRGBA(g.Bounds(img2.Bounds()))
+		g.Draw(resized2, img2)
+		img2 = resized2
+	}
 
-	//resized1 := img1
-	//resized2 := img2
-
-	return ssim.Ssim(convertToGrayscale(resized1), convertToGrayscale(resized2)), nil
+	return ssim.Ssim(convertToGrayscale(img1), convertToGrayscale(img2)), nil
 }
 
 func optimizeWebpQuality(ctx context.Context, optimizerType string, sourcePath string, quality int) (*ImageDescription, error) {

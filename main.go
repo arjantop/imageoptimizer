@@ -1,21 +1,15 @@
 package main
 
 import (
+	"flag"
+	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
-
-	"strings"
-
-	"os"
-
-	"io"
-	"strconv"
-
-	"io/ioutil"
-
 	"net/url"
-
-	"flag"
+	"os"
+	"strconv"
+	"strings"
 
 	"github.com/arjantop/imageoptimizer/optimizer"
 )
@@ -79,7 +73,9 @@ func main() {
 			return
 		}
 
-		log.Println("Proxying: " + requestUrl.Path)
+		hidpi := strings.Contains(r.RequestURI, "@2x.")
+
+		log.Printf("Proxying: %s (hidpi=%t)", requestUrl.Path, hidpi)
 		resp, err := client.Get(*baseUrl + requestUrl.Path)
 		if err != nil {
 			reportError(w, "Call failed", err)
@@ -115,7 +111,11 @@ func main() {
 			return
 		}
 
-		optimizedImage, err := optimizer.Optimize(r.Context(), optimizers, acceptedTypes, tempFile.Name())
+		optimizedImage, err := optimizer.Optimize(r.Context(), optimizers, optimizer.OptimizeParams{
+			AcceptedTypes: acceptedTypes,
+			SourcePath:    tempFile.Name(),
+			Hidpi:         hidpi,
+		})
 		if err != nil {
 			reportError(w, "Could not optimize the file", err)
 			return
