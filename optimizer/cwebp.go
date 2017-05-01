@@ -6,8 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"image"
-	"image/png"
-	"log"
+	"image/color"
 	"os"
 	"os/exec"
 	"path"
@@ -50,16 +49,11 @@ func (o *WebpLosslessOptimizer) Optimize(ctx context.Context, sourcePath string,
 }
 
 type webpQualityOptimizer struct {
-	optimizePrecheck func(ctx context.Context, sourcePath string) (bool, error)
-	optimizerType    string
+	optimizerType string
 }
 
 func (o *webpQualityOptimizer) OptimizePrecheck(ctx context.Context, sourcePath string) (bool, error) {
-	if o.optimizePrecheck != nil {
-		return o.optimizePrecheck(ctx, sourcePath)
-	} else {
-		return true, nil
-	}
+	return true, nil
 }
 
 func (o *webpQualityOptimizer) OptimizeQuality(ctx context.Context, sourcePath string, quality int) (*ImageDescription, error) {
@@ -137,7 +131,26 @@ func (o *webpQualityOptimizer) CompareImages(ctx context.Context, sourcePath str
 		img2 = resized2
 	}
 
-	return ssim.Ssim(convertToGrayscale(img1), convertToGrayscale(img2)), nil
+	return ssim.SsimWithAlpha(convertToGrayscale(img1), convertToGrayscale(img2), extractALphaChannel(img1)), nil
+}
+
+func extractALphaChannel(img image.Image) *image.Alpha {
+	boundsMin := img.Bounds().Min
+	boundsMax := img.Bounds().Max
+
+	const devisor uint32 = uint32(^uint16(0)) / uint32(^uint8(0))
+
+	alpha := image.NewAlpha(img.Bounds())
+	for y := boundsMin.Y; y < boundsMax.Y; y++ {
+		for x := boundsMin.X; x < boundsMax.X; x++ {
+			_, _, _, a := img.At(x, y).RGBA()
+			alpha.SetAlpha(x, y, color.Alpha{
+				A: uint8(a / devisor),
+			})
+		}
+	}
+
+	return alpha
 }
 
 func (o *webpQualityOptimizer) CanOptimize(mimeType string, acceptedTypes []string) bool {
@@ -150,29 +163,6 @@ func (o *webpQualityOptimizer) Optimize(ctx context.Context, sourcePath string, 
 
 func NewWebpLossyPngOptimizer(minSsim float64) ImageOptimizer {
 	opt := &webpQualityOptimizer{
-		optimizePrecheck: func(ctx context.Context, sourcePath string) (bool, error) {
-			file, err := os.Open(sourcePath)
-			if err != nil {
-				return false, err
-			}
-			defer file.Close()
-
-			img, err := png.Decode(file)
-			if err != nil {
-				return false, err
-			}
-
-			for y := 0; y < img.Bounds().Max.Y; y++ {
-				for x := 0; x < img.Bounds().Max.X; x++ {
-					_, _, _, a := img.At(x, y).RGBA()
-					if a < uint32(^uint16(0)) {
-						log.Println("Image has transparency")
-						return false, nil
-					}
-				}
-			}
-			return true, nil
-		},
 		optimizerType: "image/png",
 	}
 	return &AutomaticOptimizer{

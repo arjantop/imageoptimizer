@@ -4,6 +4,8 @@ import (
 	"image"
 	"math"
 
+	"log"
+
 	"github.com/disintegration/gift"
 )
 
@@ -29,9 +31,52 @@ var kernel = [][]float64{
 	{1.0576e-06, 7.8144e-06, 3.7022e-05, 1.1246e-04, 2.1905e-04, 2.7356e-04, 2.1905e-04, 1.1246e-04, 3.7022e-05, 7.8144e-06, 1.0576e-06},
 }
 
+func SsimWithAlpha(img1 *image.Gray, img2 *image.Gray, alpha *image.Alpha) float64 {
+	boundsMin := img1.Bounds().Min
+	boundsMax := img1.Bounds().Max
+
+	const windowSize = 11
+
+	var sum float64
+	var numWindows uint
+	var numTransparentWindows uint
+	for y := boundsMin.Y; y < boundsMax.Y-windowSize; y++ {
+		for x := boundsMin.X; x < boundsMax.X-windowSize; x++ {
+			rect := image.Rect(x, y, x+windowSize, y+windowSize)
+			alphaWindow := alpha.SubImage(rect).(*image.Alpha)
+			if isFullyTransparent(alphaWindow) {
+				numTransparentWindows += 1
+				continue
+			}
+			img1Window := img1.SubImage(rect).(*image.Gray)
+			img2Window := img2.SubImage(rect).(*image.Gray)
+			sum += ssimWindow(img1Window, img2Window)
+			numWindows++
+		}
+	}
+
+	log.Printf("Number of windows: %d Transparent: %d", numWindows, numTransparentWindows)
+
+	return sum / float64(numWindows)
+}
+
+func isFullyTransparent(img *image.Alpha) bool {
+	boundsMin := img.Bounds().Min
+	boundsMax := img.Bounds().Max
+
+	for y := boundsMin.Y; y < boundsMax.Y; y++ {
+		for x := boundsMin.X; x < boundsMax.X; x++ {
+			if img.AlphaAt(x, y).A > 0 {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 func Ssim(img1 *image.Gray, img2 *image.Gray) float64 {
 	boundsMin := img1.Bounds().Min
-	boundsMax := img2.Bounds().Max
+	boundsMax := img1.Bounds().Max
 
 	const windowSize = 11
 
