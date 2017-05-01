@@ -73,7 +73,7 @@ func main() {
 			return
 		}
 
-		hidpi := strings.Contains(r.RequestURI, "@2x.")
+		hidpi := strings.Contains(requestUrl.Path, "@2x.")
 
 		log.Printf("Proxying: %s (hidpi=%t)", requestUrl.Path, hidpi)
 		resp, err := client.Get(*baseUrl + requestUrl.Path)
