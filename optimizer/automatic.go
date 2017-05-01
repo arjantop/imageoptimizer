@@ -5,28 +5,30 @@ import (
 	"log"
 )
 
+type ImageQualityOptimizer interface {
+	OptimizePrecheck(ctx context.Context, sourcePath string) (bool, error)
+	OptimizeQuality(ctx context.Context, sourcePath string, quality int) (*ImageDescription, error)
+	CompareImages(ctx context.Context, sourcePath string, imageDesc *ImageDescription, hidpi bool) (float64, error)
+	ImageOptimizer
+}
+
 var _ ImageOptimizer = &AutomaticOptimizer{}
 
 type AutomaticOptimizer struct {
-	CanOptimizeImage func(mimeType string, acceptedTypes []string) bool
-	OptimizePrecheck func(ctx context.Context, sourcePath string) (bool, error)
-	OptimizeQuality  func(ctx context.Context, sourcePath string, quality int) (*ImageDescription, error)
-	CompareImages    func(ctx context.Context, sourcePath string, imgDesc *ImageDescription, hidpi bool) (float64, error)
-	MinSsim          float64
+	Optimizer ImageQualityOptimizer
+	MinSsim   float64
 }
 
 func (o *AutomaticOptimizer) CanOptimize(mimeType string, acceptedTypes []string) bool {
-	return o.CanOptimizeImage(mimeType, acceptedTypes)
+	return o.Optimizer.CanOptimize(mimeType, acceptedTypes)
 }
 
 func (o *AutomaticOptimizer) Optimize(ctx context.Context, sourcePath string, hidpi bool) (*ImageDescription, error) {
-	if o.OptimizePrecheck != nil {
-		ok, err := o.OptimizePrecheck(ctx, sourcePath)
-		if err != nil {
-			return nil, err
-		} else if !ok {
-			return nil, nil
-		}
+	ok, err := o.Optimizer.OptimizePrecheck(ctx, sourcePath)
+	if err != nil {
+		return nil, err
+	} else if !ok {
+		return nil, nil
 	}
 
 	var best *ImageDescription
@@ -37,12 +39,12 @@ func (o *AutomaticOptimizer) Optimize(ctx context.Context, sourcePath string, hi
 		quality := (qualityMax + qualityMin) / 2
 		log.Printf("Trying quality %d", quality)
 
-		imageDesc, err := o.OptimizeQuality(ctx, sourcePath, quality)
+		imageDesc, err := o.Optimizer.OptimizeQuality(ctx, sourcePath, quality)
 		if err != nil {
 			return nil, err
 		}
 
-		score, err := o.CompareImages(ctx, sourcePath, imageDesc, hidpi)
+		score, err := o.Optimizer.CompareImages(ctx, sourcePath, imageDesc, hidpi)
 		if err != nil {
 			return nil, err
 		}
