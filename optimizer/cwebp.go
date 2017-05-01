@@ -58,7 +58,7 @@ func (o *webpQualityOptimizer) OptimizePrecheck(ctx context.Context, sourcePath 
 
 func (o *webpQualityOptimizer) OptimizeQuality(ctx context.Context, sourcePath string, quality int) (*ImageDescription, error) {
 	outputPath := tempFilename(os.TempDir(), path.Base(sourcePath))
-	cmd := exec.CommandContext(ctx, "cwebp", "-q", strconv.Itoa(quality), "-o", outputPath, sourcePath)
+	cmd := exec.CommandContext(ctx, "cwebp", "-q", strconv.Itoa(quality), "-alpha_q", "100", "-o", outputPath, sourcePath)
 
 	outputFile, err := os.OpenFile(outputPath, os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
@@ -131,10 +131,11 @@ func (o *webpQualityOptimizer) CompareImages(ctx context.Context, sourcePath str
 		img2 = resized2
 	}
 
-	return ssim.SsimWithAlpha(convertToGrayscale(img1), convertToGrayscale(img2), extractALphaChannel(img1)), nil
+	return ssim.SsimWithAlpha(convertToGrayscale(img1), convertToGrayscale(img2), extractAlphaChannel(img1)), nil
+	//return ssim.Ssim(convertToGrayscale(img1), convertToGrayscale(img2)), nil
 }
 
-func extractALphaChannel(img image.Image) *image.Alpha {
+func extractAlphaChannel(img image.Image) *image.Alpha {
 	boundsMin := img.Bounds().Min
 	boundsMax := img.Bounds().Max
 

@@ -51,7 +51,7 @@ func main() {
 		&optimizer.WebpLosslessOptimizer{
 			Args: []string{"-z", "9"},
 		},
-		optimizer.NewWebpLossyPngOptimizer(0.997),
+		optimizer.NewWebpLossyPngOptimizer(0.998),
 		optimizer.NewWebpLossyJpegOptimizer(0.995),
 		&optimizer.OptipngOptimizer{
 			Args: []string{"-strip", "all"},

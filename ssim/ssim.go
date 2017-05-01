@@ -38,10 +38,12 @@ func SsimWithAlpha(img1 *image.Gray, img2 *image.Gray, alpha *image.Alpha) float
 	const windowSize = 11
 
 	var sum float64
+	var totalWindows uint
 	var numWindows uint
 	var numTransparentWindows uint
 	for y := boundsMin.Y; y < boundsMax.Y-windowSize; y++ {
 		for x := boundsMin.X; x < boundsMax.X-windowSize; x++ {
+			totalWindows += 1
 			rect := image.Rect(x, y, x+windowSize, y+windowSize)
 			alphaWindow := alpha.SubImage(rect).(*image.Alpha)
 			if isFullyTransparent(alphaWindow) {
@@ -55,7 +57,7 @@ func SsimWithAlpha(img1 *image.Gray, img2 *image.Gray, alpha *image.Alpha) float
 		}
 	}
 
-	log.Printf("Number of windows: %d Transparent: %d", numWindows, numTransparentWindows)
+	log.Printf("Number of windows: %d Transparent: %d Total: %d", numWindows, numTransparentWindows, totalWindows)
 
 	return sum / float64(numWindows)
 }
