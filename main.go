@@ -76,8 +76,19 @@ func main() {
 
 		hidpi := strings.Contains(requestUrl.Path, "@2x.")
 
-		log.Printf("Proxying: %s (hidpi=%t)", requestUrl.Path, hidpi)
-		resp, err := client.Get(*baseUrl + requestUrl.Path)
+		log.Printf("Proxying: %s (hidpi=%t)", requestUrl.Path+"?"+requestUrl.RawQuery, hidpi)
+
+		req, err := http.NewRequest(http.MethodGet, *baseUrl+requestUrl.Path+"?"+requestUrl.RawQuery, nil)
+		if err != nil {
+			log.Fatal("Invalid request")
+		}
+		for key, vals := range r.Header {
+			for _, val := range vals {
+				req.Header.Set(key, val)
+			}
+		}
+
+		resp, err := client.Do(req)
 		if err != nil {
 			reportError(w, "Call failed", err)
 			return
