@@ -2,9 +2,8 @@ package ssim
 
 import (
 	"image"
-	"math"
-
 	"log"
+	"math"
 
 	"github.com/disintegration/gift"
 )
@@ -82,17 +81,26 @@ func Ssim(img1 *image.Gray, img2 *image.Gray) float64 {
 
 	const windowSize = 11
 
-	var sum float64
+	var sum, max, min float64 = 0, 0, math.MaxFloat64
 	var numWindows uint
 	for y := boundsMin.Y; y < boundsMax.Y-windowSize; y++ {
 		for x := boundsMin.X; x < boundsMax.X-windowSize; x++ {
 			rect := image.Rect(x, y, x+windowSize, y+windowSize)
 			img1Window := img1.SubImage(rect).(*image.Gray)
 			img2Window := img2.SubImage(rect).(*image.Gray)
-			sum += ssimWindow(img1Window, img2Window)
+			windowSsim := ssimWindow(img1Window, img2Window)
+			if windowSsim > max {
+				max = windowSsim
+			}
+			if windowSsim < min {
+				min = windowSsim
+			}
+			sum += windowSsim
 			numWindows++
 		}
 	}
+
+	log.Printf("SSIM: %f MIN: %f MAX: %f", sum/float64(numWindows), min, max)
 
 	return sum / float64(numWindows)
 }
