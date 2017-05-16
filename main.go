@@ -39,6 +39,7 @@ func parseAcceptedTypes(acceptHeader string) []string {
 }
 
 var baseUrl = flag.String("baseurl", "", "Base url to which proxied requests are appended")
+var forceHidpi = flag.Bool("forceHidpi", false, "Force all image optimization to be done in hidpi mode")
 
 func main() {
 	flag.Parse()
@@ -49,7 +50,7 @@ func main() {
 
 	optimizers := []optimizer.ImageOptimizer{
 		&optimizer.WebpLosslessOptimizer{
-			Args: []string{"-z", "9"},
+			Args: []string{},
 		},
 		optimizer.NewWebpLossyPngOptimizer(0.998),
 		optimizer.NewWebpLossyJpegOptimizer(0.995),
@@ -74,7 +75,7 @@ func main() {
 			return
 		}
 
-		hidpi := strings.Contains(requestUrl.Path, "@2x.")
+		hidpi := *forceHidpi || strings.Contains(requestUrl.Path, "@2x.")
 
 		log.Printf("Proxying: %s (hidpi=%t)", requestUrl.Path+"?"+requestUrl.RawQuery, hidpi)
 

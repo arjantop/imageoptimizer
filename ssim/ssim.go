@@ -36,7 +36,7 @@ func SsimWithAlpha(img1 *image.Gray, img2 *image.Gray, alpha *image.Alpha) float
 
 	const windowSize = 11
 
-	var sum float64
+	var sum, max, min float64 = 0, 0, math.MaxFloat64
 	var totalWindows uint
 	var numWindows uint
 	var numTransparentWindows uint
@@ -51,11 +51,19 @@ func SsimWithAlpha(img1 *image.Gray, img2 *image.Gray, alpha *image.Alpha) float
 			}
 			img1Window := img1.SubImage(rect).(*image.Gray)
 			img2Window := img2.SubImage(rect).(*image.Gray)
-			sum += ssimWindow(img1Window, img2Window)
+			windowSsim := ssimWindow(img1Window, img2Window)
+			if windowSsim > max {
+				max = windowSsim
+			}
+			if windowSsim < min {
+				min = windowSsim
+			}
+			sum += windowSsim
 			numWindows++
 		}
 	}
 
+	log.Printf("SSIM: %f MIN: %f MAX: %f", sum/float64(numWindows), min, max)
 	log.Printf("Number of windows: %d Transparent: %d Total: %d", numWindows, numTransparentWindows, totalWindows)
 
 	return sum / float64(numWindows)

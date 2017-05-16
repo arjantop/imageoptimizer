@@ -10,7 +10,7 @@ import (
 )
 
 func tempFilename(dir, originalFilename string) string {
-	randomBytes := make([]byte, 32)
+	randomBytes := make([]byte, 10)
 	_, err := rand.Read(randomBytes)
 	if err != nil {
 		panic("could not generate new temporary filename")
